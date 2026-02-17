@@ -1,9 +1,20 @@
-export default function AttendanceTable({ data, onEdit, onDelete }) {
+export default function AttendanceTable({
+  data,
+  shiftStart,
+  shiftEnd,
+  onEdit,
+  // onDelete,
+}) {
   if (!Array.isArray(data) || data.length === 0) {
     return <p className="text-sm text-gray-500">No attendance records</p>;
   }
 
   const minutesToHours = (m) => (m ? (m / 60).toFixed(2) : "0.00");
+
+  const shiftTime =
+    shiftStart && shiftEnd
+      ? `${shiftStart} - ${shiftEnd}`
+      : "--:-- - --:--";
 
   return (
     <div className="overflow-x-auto">
@@ -16,8 +27,7 @@ export default function AttendanceTable({ data, onEdit, onDelete }) {
             <th className="border p-2">Out</th>
             <th className="border p-2">Work (hrs)</th>
             <th className="border p-2">OT (hrs)</th>
-            <th className="border p-2">Pay Day</th>
-            <th className="border p-2">Day Salary</th>
+            <th className="border p-2">Shift Time</th>
             <th className="border p-2">Actions</th>
           </tr>
         </thead>
@@ -38,11 +48,8 @@ export default function AttendanceTable({ data, onEdit, onDelete }) {
                 {minutesToHours(row.overtime_minutes)}
               </td>
 
-              <td className="border p-2 text-center font-semibold">
-                {row.salary_day_count ?? 0}
-              </td>
-              <td className="border p-2 text-right font-semibold">
-                ₹ {row.day_salary?.toFixed(2) ?? "0.00"}
+              <td className="border p-2 text-center font-medium">
+                {shiftTime}
               </td>
 
               <td className="border p-2 text-center space-x-3">
@@ -53,12 +60,12 @@ export default function AttendanceTable({ data, onEdit, onDelete }) {
                   Edit
                 </button>
 
-                <button
+                {/* <button
                   onClick={() => onDelete(row)}
                   className="text-red-600 underline"
                 >
                   Delete
-                </button>
+                </button> */}
               </td>
             </tr>
           ))}

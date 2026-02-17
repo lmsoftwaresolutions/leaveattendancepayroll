@@ -4,6 +4,8 @@ from app.core.constants import ROLE_ADMIN
 from app.database.mongo import db
 from app.schemas.employee_schema import EmployeeWithUserCreateSchema
 from app.services.employee_service import create_employee_with_user
+from bson import ObjectId
+from fastapi import HTTPException
 from app.services.employee_service import (
     list_all_employees,
     update_employee,
@@ -64,3 +66,61 @@ def admin_stats(user=Depends(allow_roles(ROLE_ADMIN))):
         "total_employees": get_employee_count(),
         "admin_name": user["email"]
     }
+
+departments = db["departments"]
+designations = db["designations"]
+
+@router.delete("/departments/{dept_id}")
+def delete_department(
+    dept_id: str,
+    user=Depends(allow_roles(ROLE_ADMIN))
+):
+    # 1️⃣ Find department
+    dept = departments.find_one({"_id": ObjectId(dept_id)})
+
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    dept_code = dept.get("code")
+
+    # 2️⃣ Soft delete department
+    departments.update_one(
+        {"_id": ObjectId(dept_id)},
+        {"$set": {"is_active": False}}
+    )
+
+    # 3️⃣ Soft delete related designations
+    if dept_code:
+        designations.update_many(
+            {"department_code": dept_code},
+            {"$set": {"is_active": False}}
+        )
+
+    return {
+        "message": "Department and related designations deleted successfully"
+    }
+
+from bson import ObjectId
+from fastapi import HTTPException
+from app.database.mongo import db
+
+designations = db["designations"]
+
+@router.delete("/designations/{desig_id}")
+def delete_designation(
+    desig_id: str,
+    user=Depends(allow_roles(ROLE_ADMIN))
+):
+    try:
+        result = designations.update_one(
+            {"_id": ObjectId(desig_id)},
+            {"$set": {"is_active": False}}
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid designation ID")
+
+    # ✅ Do NOT block if already deleted
+    if result.matched_count == 0:
+        return {"message": "Designation already deleted"}
+
+    return {"message": "Designation deleted successfully"}

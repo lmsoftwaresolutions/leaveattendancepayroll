@@ -67,7 +67,7 @@ def process_biometric_upload(file: UploadFile, month: str):
         shift_minutes = int(emp["total_duty_hours_per_day"] * 60)
 
         monthly_salary = float(emp.get("salary", 0))
-        daily_rate = calculate_daily_rate(monthly_salary)
+        daily_rate = calculate_daily_rate(monthly_salary, year, mon)
 
         last_biometric_day = None
 
@@ -85,7 +85,7 @@ def process_biometric_upload(file: UploadFile, month: str):
             if existing and existing.get("source") == "MANUAL":
                 continue
 
-            # -------- SUNDAY WITHOUT PUNCH --------
+            # -------- WEEKLY OFF --------
             if is_sunday and not logs:
                 attendance_daily.update_one(
                     {"emp_code": emp_code, "date": date_str},
@@ -146,6 +146,14 @@ def process_biometric_upload(file: UploadFile, month: str):
             work_minutes = minutes_between(first_in, last_out)
             overtime_minutes = calculate_overtime(work_minutes, shift_minutes)
 
+            # -------- STATUS CLASSIFICATION (NEW) --------
+            if work_minutes > shift_minutes:
+                status = "PRESENT_OVERTIME"
+            elif work_minutes == shift_minutes:
+                status = "PRESENT_COMPLETE"
+            else:
+                status = "PRESENT_INCOMPLETE"
+
             start_dt = datetime.combine(d, shift_start)
             end_dt = datetime.combine(
                 d if shift_end > shift_start else d + timedelta(days=1),
@@ -164,7 +172,7 @@ def process_biometric_upload(file: UploadFile, month: str):
                     "overtime_minutes": overtime_minutes,
                     "late_minutes": max(0, minutes_between(start_dt, first_in)),
                     "early_out_minutes": max(0, minutes_between(last_out, end_dt)),
-                    "status": "PRESENT",
+                    "status": status,
                     "salary_day_count": 1,
                     "day_salary": daily_rate,
                     "worked_on_weekly_off": is_sunday,
@@ -208,11 +216,17 @@ def edit_attendance(attendance_id: str, data: dict):
     if not record:
         raise HTTPException(status_code=404, detail="Attendance not found")
 
-    status = data.get("status", "PRESENT")
+    status = data.get("status", "PRESENT_COMPLETE")
 
     emp = employees.find_one({"_id": record["employee_id"]})
     monthly_salary = float(emp.get("salary", 0)) if emp else 0
-    daily_rate = calculate_daily_rate(monthly_salary)
+
+    record_date = datetime.fromisoformat(record["date"])
+    daily_rate = calculate_daily_rate(
+        monthly_salary,
+        record_date.year,
+        record_date.month,
+    )
 
     # -------- ABSENT / WEEKLY OFF --------
     if status in ["ABSENT", "WEEKLY_OFF"]:
@@ -236,26 +250,27 @@ def edit_attendance(attendance_id: str, data: dict):
         )
         return {"message": "Attendance updated successfully"}
 
-    # -------- PRESENT --------
+    # -------- PRESENT (MANUAL) --------
     if not data.get("first_in") or not data.get("last_out"):
         raise HTTPException(
             status_code=400,
             detail="first_in and last_out are required for PRESENT status",
         )
 
-    try:
-        first_in = datetime.strptime(data["first_in"], "%H:%M")
-        last_out = datetime.strptime(data["last_out"], "%H:%M")
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid time format. Use HH:MM",
-        )
+    first_in = datetime.strptime(data["first_in"], "%H:%M")
+    last_out = datetime.strptime(data["last_out"], "%H:%M")
 
     shift_minutes = int(record.get("total_duty_hours_per_day", 8) * 60)
 
     work_minutes = minutes_between(first_in, last_out)
     overtime_minutes = calculate_overtime(work_minutes, shift_minutes)
+
+    if work_minutes > shift_minutes:
+        final_status = "PRESENT_OVERTIME"
+    elif work_minutes == shift_minutes:
+        final_status = "PRESENT_COMPLETE"
+    else:
+        final_status = "PRESENT_INCOMPLETE"
 
     attendance_daily.update_one(
         {"_id": ObjectId(attendance_id)},
@@ -266,7 +281,7 @@ def edit_attendance(attendance_id: str, data: dict):
             "overtime_minutes": overtime_minutes,
             "late_minutes": data.get("late_minutes", 0),
             "early_out_minutes": data.get("early_out_minutes", 0),
-            "status": "PRESENT",
+            "status": final_status,
             "salary_day_count": 1,
             "day_salary": daily_rate,
             "worked_on_weekly_off": record.get("worked_on_weekly_off", False),
@@ -275,6 +290,7 @@ def edit_attendance(attendance_id: str, data: dict):
     )
 
     return {"message": "Attendance recalculated and updated"}
+
 
 # ---------------- FETCH FROM BIOMETRIC API ----------------
 
@@ -331,8 +347,10 @@ def calculate_day_salary(monthly_salary: float, total_salary_days: int, salary_d
     per_day = monthly_salary / total_salary_days
     return round(per_day * salary_day_count, 2)
 
-def calculate_daily_rate(monthly_salary: float):
-    STANDARD_WORKING_DAYS = 26
+
+def calculate_daily_rate(monthly_salary: float, year: int, month: int):
     if monthly_salary <= 0:
         return 0
-    return round(monthly_salary / STANDARD_WORKING_DAYS, 2)
+
+    total_days = monthrange(year, month)[1]
+    return round(monthly_salary / total_days, 2)

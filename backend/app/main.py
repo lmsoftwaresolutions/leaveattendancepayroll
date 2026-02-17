@@ -5,6 +5,8 @@ from app.routes.admin_routes import router as admin_router
 from app.routes.employee_routes import router as employee_router
 from app.routes.superadmin_routes import router as superadmin_router
 from app.routes.attendance_routes import router as attendance_router
+from app.routes.department_routes import router as department_router
+from app.routes.designation_routes import router as designation_router
 app = FastAPI(title="Payroll Management System")
 
 app.add_middleware(
@@ -23,6 +25,8 @@ app.include_router(admin_router)
 app.include_router(employee_router)
 app.include_router(superadmin_router)
 app.include_router(attendance_router)
+app.include_router(department_router)
+app.include_router(designation_router)
 
 @app.get("/")
 def health_check():

@@ -36,6 +36,10 @@ export default function AdminLayout() {
             Dashboard
           </Link>
           <Link
+            to="/admin/department-designation" className="block hover:text-red-300">
+            Department & Designation
+          </Link>
+          <Link
             to="/admin/create-employee"
             className="block hover:text-red-300"
           >
