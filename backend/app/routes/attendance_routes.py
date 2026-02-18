@@ -47,3 +47,11 @@ def fetch_from_biometric(
 ):
     print("FETCH BIOMETRIC MONTH:", data.month)
     return fetch_and_process_biometric(data.month)
+
+@router.get("/monthly-summary")
+def monthly_summary(
+    month: str,
+    user=Depends(allow_roles(ROLE_ADMIN)),
+):
+    from app.services.attendance_service import get_monthly_payroll_summary
+    return get_monthly_payroll_summary(month)

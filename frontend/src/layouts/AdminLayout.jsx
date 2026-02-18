@@ -19,13 +19,13 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside
         className={`
-    bg-red-900 text-white w-64
-    fixed inset-y-0 left-0 z-40
-    transform transition-transform duration-300
-    flex flex-col               
-    ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
-    md:static md:translate-x-0
-  `}
+          bg-red-900 text-white w-64
+          fixed inset-y-0 left-0 z-40
+          transform transition-transform duration-300
+          flex flex-col
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+          md:static md:translate-x-0
+        `}
       >
         <div className="p-4 text-xl font-bold border-b border-red-800">
           Admin Panel
@@ -35,19 +35,25 @@ export default function AdminLayout() {
           <Link to="/admin" className="block hover:text-red-300">
             Dashboard
           </Link>
+
           <Link
-            to="/admin/department-designation" className="block hover:text-red-300">
+            to="/admin/department-designation"
+            className="block hover:text-red-300"
+          >
             Department & Designation
           </Link>
+
           <Link
             to="/admin/create-employee"
             className="block hover:text-red-300"
           >
             Create Employee
           </Link>
+
           <Link to="/admin/employees" className="block hover:text-red-300">
             View Employees
           </Link>
+
           <Link to="/admin/attendance" className="block hover:text-red-300">
             Attendance
           </Link>
@@ -76,6 +82,7 @@ export default function AdminLayout() {
           <h1 className="ml-4 font-semibold">Admin</h1>
         </header>
 
+        {/* MAIN CONTENT */}
         <main className="p-6">
           <Outlet />
         </main>

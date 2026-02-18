@@ -12,6 +12,8 @@ import SuperAdminLayout from "./layouts/SuperAdminLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import Attendance from "./pages/admin/Attendance";
 import DepartmentDesignation from "./pages/admin/DepartmentDesignation";
+import EmployeeProfile from "./pages/admin/EmployeeProfile";
+
 
 
 export default function AppRoutes() {
@@ -32,6 +34,7 @@ export default function AppRoutes() {
         <Route path="employees" element={<EmployeeList />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path= "department-designation" element= {<DepartmentDesignation />}/>
+        <Route path="employees/:id" element={<EmployeeProfile />} />
       </Route>
 
       <Route

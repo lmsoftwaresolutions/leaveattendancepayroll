@@ -13,3 +13,4 @@ def employee_dashboard(
     user=Depends(allow_roles(ROLE_EMPLOYEE))
 ):
     return get_my_employee_profile(user)
+

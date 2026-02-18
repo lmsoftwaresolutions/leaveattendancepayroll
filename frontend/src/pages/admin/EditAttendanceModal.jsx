@@ -23,7 +23,6 @@ export default function EditAttendanceModal({ record, onClose, onSaved }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // 🧠 If status changes to non-present, clear times
     if (name === "status" && value !== "PRESENT") {
       setForm({
         status: value,
@@ -45,7 +44,7 @@ export default function EditAttendanceModal({ record, onClose, onSaved }) {
     }
   };
 
-  const isPresent = form.status === "PRESENT";
+  const isPresent = form.status.startsWith("PRESENT");
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -58,7 +57,10 @@ export default function EditAttendanceModal({ record, onClose, onSaved }) {
           onChange={handleChange}
           className="border p-2 w-full rounded"
         >
-          <option value="PRESENT">Present</option>
+          <option value="PRESENT_COMPLETE">Present (Full Day)</option>
+          <option value="PRESENT_INCOMPLETE">Present (Partial)</option>
+          <option value="PRESENT_OVERTIME">Present (Overtime)</option>
+
           <option value="ABSENT">Absent</option>
           <option value="WEEKLY_OFF">Weekly Off</option>
         </select>

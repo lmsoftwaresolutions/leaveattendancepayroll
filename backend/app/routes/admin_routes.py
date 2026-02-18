@@ -124,3 +124,16 @@ def delete_designation(
         return {"message": "Designation already deleted"}
 
     return {"message": "Designation deleted successfully"}
+
+@router.get("/employees/{emp_id}")
+def get_employee_by_id(
+    emp_id: str,
+    user=Depends(allow_roles(ROLE_ADMIN))
+):
+    emp = db["employees"].find_one({"_id": ObjectId(emp_id)})
+
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    emp["_id"] = str(emp["_id"])
+    return emp
