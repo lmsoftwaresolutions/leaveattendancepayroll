@@ -2,7 +2,10 @@ import json
 import io
 import requests
 from bson import ObjectId
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
+from typing import Optional, Tuple
+
 from calendar import monthrange
 from fastapi import HTTPException, UploadFile
 
@@ -15,6 +18,13 @@ attendance_daily = db["attendance_daily"]
 
 # ---------------- HELPERS ----------------
 
+def count_work_days(in_dt: datetime, out_dt: datetime) -> int:
+    """
+    Counts how many calendar days are involved in the work period.
+    """
+    return max(1, (out_dt.date() - in_dt.date()).days + 1)
+
+
 def parse_time(t: str):
     return datetime.strptime(t, "%H:%M").time()
 
@@ -22,174 +32,6 @@ def parse_time(t: str):
 def minutes_between(start: datetime, end: datetime):
     return max(0, int((end - start).total_seconds() / 60))
 
-
-# ---------------- BIOMETRIC UPLOAD ----------------
-# def process_biometric_upload(file: UploadFile, month: str):
-#     try:
-#         raw = json.loads(file.file.read())
-#     except Exception:
-#         raise HTTPException(status_code=400, detail="Invalid JSON file")
-
-#     punch_data = raw.get("InOutPunchData")
-#     if not punch_data:
-#         raise HTTPException(status_code=400, detail="Invalid biometric JSON")
-
-#     year, mon = map(int, month.split("-"))
-#     all_dates = get_all_dates_of_month(year, mon)
-
-#     punches = {}
-
-#     # -------- PARSE BIOMETRIC DATA --------
-#     for row in punch_data:
-#         emp_code = str(row.get("Empcode", "")).strip()
-#         date_str = row.get("DateString")
-#         in_time = row.get("INTime")
-#         out_time = row.get("OUTTime")
-
-#         if not emp_code or in_time == "--:--":
-#             continue
-
-#         if out_time == "--:--":
-#             out_time = in_time
-
-#         punch_date = datetime.strptime(date_str, "%d/%m/%Y").date()
-
-#         in_dt = datetime.combine(punch_date, parse_time(in_time))
-#         out_dt = datetime.combine(punch_date, parse_time(out_time))
-
-#         if out_dt < in_dt:
-#             out_dt += timedelta(days=1)
-
-#         punches[(emp_code, punch_date)] = (in_dt, out_dt)
-
-#     # -------- PROCESS EMPLOYEES --------
-#     for emp in employees.find({"is_active": True}):
-
-#         # ✅ FIX: prevent "None" emp_code
-#         emp_code = emp.get("emp_code")
-#         if not emp_code:
-#             continue
-#         emp_code = str(emp_code).strip()
-
-#         shift_start = parse_time(str(emp["shift_start_time"]))
-#         shift_end = parse_time(str(emp["shift_end_time"]))
-#         shift_minutes = int(emp["total_duty_hours_per_day"] * 60)
-
-#         monthly_salary = float(emp.get("salary", 0))
-#         daily_rate = calculate_daily_rate(monthly_salary, year, mon)
-
-#         last_biometric_day = None
-
-#         for d in all_dates:
-#             date_str = d.isoformat()
-#             is_sunday = d.weekday() == 6
-#             logs = punches.get((emp_code, d))
-
-#             existing = attendance_daily.find_one({
-#                 "emp_code": emp_code,
-#                 "date": date_str,
-#             })
-
-#             # 🚫 DO NOT OVERRIDE MANUAL
-#             if existing and existing.get("source") == "MANUAL":
-#                 continue
-
-#             # -------- WEEKLY OFF --------
-#             if is_sunday and not logs:
-#                 attendance_daily.update_one(
-#                     {"emp_code": emp_code, "date": date_str},
-#                     {"$set": {
-#                         "employee_id": emp["_id"],
-#                         "emp_code": emp_code,
-#                         "date": date_str,
-#                         "status": "WEEKLY_OFF",
-#                         "first_in": "",
-#                         "last_out": "",
-#                         "work_minutes": 0,
-#                         "overtime_minutes": 0,
-#                         "late_minutes": 0,
-#                         "early_out_minutes": 0,
-#                         "salary_day_count": 1,
-#                         "day_salary": daily_rate,
-#                         "worked_on_weekly_off": False,
-#                         "source": "BIOMETRIC",
-#                     }},
-#                     upsert=True,
-#                 )
-#                 continue
-
-#             first_in = None
-#             last_out = None
-
-#             # -------- BIOMETRIC PRESENT --------
-#             if logs:
-#                 first_in, last_out = logs
-#                 last_biometric_day = d
-
-#             # -------- CONTINUATION DAY --------
-#             elif last_biometric_day and (d - last_biometric_day).days == 1:
-#                 first_in = datetime.combine(d, shift_start)
-#                 last_out = datetime.combine(d, shift_end)
-
-#             # -------- ABSENT --------
-#             else:
-#                 attendance_daily.update_one(
-#                     {"emp_code": emp_code, "date": date_str},
-#                     {"$set": {
-#                         "employee_id": emp["_id"],
-#                         "emp_code": emp_code,
-#                         "date": date_str,
-#                         "status": "ABSENT",
-#                         "first_in": "",
-#                         "last_out": "",
-#                         "work_minutes": 0,
-#                         "overtime_minutes": 0,
-#                         "salary_day_count": 0,
-#                         "day_salary": 0,
-#                         "source": "BIOMETRIC",
-#                     }},
-#                     upsert=True,
-#                 )
-#                 continue
-
-#             work_minutes = minutes_between(first_in, last_out)
-#             overtime_minutes = calculate_overtime(work_minutes, shift_minutes)
-
-#             if work_minutes > shift_minutes:
-#                 status = "PRESENT_OVERTIME"
-#             elif work_minutes == shift_minutes:
-#                 status = "PRESENT_COMPLETE"
-#             else:
-#                 status = "PRESENT_INCOMPLETE"
-
-#             start_dt = datetime.combine(d, shift_start)
-#             end_dt = datetime.combine(
-#                 d if shift_end > shift_start else d + timedelta(days=1),
-#                 shift_end,
-#             )
-
-#             attendance_daily.update_one(
-#                 {"emp_code": emp_code, "date": date_str},
-#                 {"$set": {
-#                     "employee_id": emp["_id"],
-#                     "emp_code": emp_code,
-#                     "date": date_str,
-#                     "first_in": first_in.strftime("%H:%M"),
-#                     "last_out": last_out.strftime("%H:%M"),
-#                     "work_minutes": work_minutes,
-#                     "overtime_minutes": overtime_minutes,
-#                     "late_minutes": max(0, minutes_between(start_dt, first_in)),
-#                     "early_out_minutes": max(0, minutes_between(last_out, end_dt)),
-#                     "status": status,
-#                     "salary_day_count": 1,
-#                     "day_salary": daily_rate,
-#                     "worked_on_weekly_off": is_sunday,
-#                     "source": "BIOMETRIC",
-#                 }},
-#                 upsert=True,
-#             )
-
-#     return {"message": "Biometric attendance processed successfully"}
 
 
 # ---------------- FETCH (EMPLOYEE + MONTH) ----------------
@@ -216,88 +58,6 @@ def get_attendance_by_employee(employee_id: str, month: str):
         result.append(r)
 
     return result
-
-
-# ---------------- EDIT ATTENDANCE ----------------
-# def edit_attendance(attendance_id: str, data: dict):
-#     record = attendance_daily.find_one({"_id": ObjectId(attendance_id)})
-#     if not record:
-#         raise HTTPException(status_code=404, detail="Attendance not found")
-
-#     status = data.get("status", "PRESENT_COMPLETE")
-
-#     emp = employees.find_one({"_id": record["employee_id"]})
-#     monthly_salary = float(emp.get("salary", 0)) if emp else 0
-
-#     record_date = datetime.fromisoformat(record["date"])
-#     daily_rate = calculate_daily_rate(
-#         monthly_salary,
-#         record_date.year,
-#         record_date.month,
-#     )
-
-#     # -------- ABSENT / WEEKLY OFF --------
-#     if status in ["ABSENT", "WEEKLY_OFF"]:
-#         salary_day_count = 1 if status == "WEEKLY_OFF" else 0
-
-#         attendance_daily.update_one(
-#             {"_id": ObjectId(attendance_id)},
-#             {"$set": {
-#                 "status": status,
-#                 "first_in": "",
-#                 "last_out": "",
-#                 "work_minutes": 0,
-#                 "overtime_minutes": 0,
-#                 "late_minutes": 0,
-#                 "early_out_minutes": 0,
-#                 "salary_day_count": salary_day_count,
-#                 "day_salary": daily_rate if salary_day_count == 1 else 0,
-#                 "worked_on_weekly_off": False,
-#                 "source": "MANUAL",
-#             }},
-#         )
-#         return {"message": "Attendance updated successfully"}
-
-#     # -------- PRESENT (MANUAL) --------
-#     if not data.get("first_in") or not data.get("last_out"):
-#         raise HTTPException(
-#             status_code=400,
-#             detail="first_in and last_out are required for PRESENT status",
-#         )
-
-#     first_in = datetime.strptime(data["first_in"], "%H:%M")
-#     last_out = datetime.strptime(data["last_out"], "%H:%M")
-
-#     shift_minutes = int(record.get("total_duty_hours_per_day", 8) * 60)
-
-#     work_minutes = minutes_between(first_in, last_out)
-#     overtime_minutes = calculate_overtime(work_minutes, shift_minutes)
-
-#     if work_minutes > shift_minutes:
-#         final_status = "PRESENT_OVERTIME"
-#     elif work_minutes == shift_minutes:
-#         final_status = "PRESENT_COMPLETE"
-#     else:
-#         final_status = "PRESENT_INCOMPLETE"
-
-#     attendance_daily.update_one(
-#         {"_id": ObjectId(attendance_id)},
-#         {"$set": {
-#             "first_in": data["first_in"],
-#             "last_out": data["last_out"],
-#             "work_minutes": work_minutes,
-#             "overtime_minutes": overtime_minutes,
-#             "late_minutes": data.get("late_minutes", 0),
-#             "early_out_minutes": data.get("early_out_minutes", 0),
-#             "status": final_status,
-#             "salary_day_count": 1,
-#             "day_salary": daily_rate,
-#             "worked_on_weekly_off": record.get("worked_on_weekly_off", False),
-#             "source": "MANUAL",
-#         }},
-#     )
-
-#     return {"message": "Attendance recalculated and updated"}
 
 
 # ---------------- FETCH FROM BIOMETRIC API ----------------
@@ -510,16 +270,19 @@ def process_biometric_upload(file: UploadFile, month: str):
         in_time = row.get("INTime")
         out_time = row.get("OUTTime")
 
-        if not date_str or in_time == "--:--":
+        # No date → ignore
+        if not date_str:
             continue
 
-        if out_time == "--:--":
-            out_time = in_time
+        # Partial or missing punch → IGNORE COMPLETELY
+        if in_time == "--:--" or out_time == "--:--":
+            continue
 
         punch_date = datetime.strptime(date_str, "%d/%m/%Y").date()
         in_dt = datetime.combine(punch_date, parse_time(in_time))
         out_dt = datetime.combine(punch_date, parse_time(out_time))
 
+        # Overnight handling
         if out_dt < in_dt:
             out_dt += timedelta(days=1)
 
@@ -538,8 +301,6 @@ def process_biometric_upload(file: UploadFile, month: str):
         monthly_salary = float(emp.get("salary", 0))
         daily_rate = calculate_daily_rate(monthly_salary, year, mon)
 
-        last_biometric_day = None
-
         for d in all_dates:
             date_str = d.isoformat()
             logs = punches.get((emp_code, d))
@@ -549,6 +310,7 @@ def process_biometric_upload(file: UploadFile, month: str):
                 "date": date_str,
             })
 
+            # Manual entry always wins
             if existing and existing.get("source") == "MANUAL":
                 continue
 
@@ -571,16 +333,8 @@ def process_biometric_upload(file: UploadFile, month: str):
                 )
                 continue
 
-            if logs:
-                in_dt, out_dt = logs
-                last_biometric_day = d
-            elif last_biometric_day and (d - last_biometric_day).days == 1:
-                in_dt = datetime.combine(d, shift_start)
-                out_dt = datetime.combine(
-                    d if shift_end > shift_start else d + timedelta(days=1),
-                    shift_end,
-                )
-            else:
+            # ---------- NO BIOMETRIC DATA ----------
+            if not logs:
                 attendance_daily.update_one(
                     {"emp_code": emp_code, "date": date_str},
                     {"$set": {
@@ -598,12 +352,16 @@ def process_biometric_upload(file: UploadFile, month: str):
                 )
                 continue
 
+            # ---------- VALID BIOMETRIC (IN + OUT) ----------
+            in_dt, out_dt = logs
+
             work_minutes = minutes_between(in_dt, out_dt)
             overtime_minutes = calculate_overtime(work_minutes, shift_minutes)
+            expected_minutes = shift_minutes
 
-            if work_minutes > shift_minutes:
+            if work_minutes > expected_minutes:
                 status = "PRESENT_OVERTIME"
-            elif work_minutes == shift_minutes:
+            elif work_minutes == expected_minutes:
                 status = "PRESENT_COMPLETE"
             else:
                 status = "PRESENT_INCOMPLETE"
@@ -614,15 +372,10 @@ def process_biometric_upload(file: UploadFile, month: str):
                     "employee_id": emp["_id"],
                     "emp_code": emp_code,
                     "date": date_str,
-
-                    # OLD FIELDS (KEEP)
                     "first_in": in_dt.strftime("%H:%M"),
                     "last_out": out_dt.strftime("%H:%M"),
-
-                    # NEW FIELDS (ADD)
                     "in_datetime": in_dt.isoformat(),
                     "out_datetime": out_dt.isoformat(),
-
                     "work_minutes": work_minutes,
                     "overtime_minutes": overtime_minutes,
                     "status": status,
@@ -635,53 +388,83 @@ def process_biometric_upload(file: UploadFile, month: str):
 
     return {"message": "Biometric attendance processed successfully"}
 
-def edit_attendance(attendance_id: str, data: dict):
+
+def edit_attendance_manual(
+    attendance_id: str,
+    in_datetime: str,
+    out_datetime: str,
+):
     record = attendance_daily.find_one({"_id": ObjectId(attendance_id)})
     if not record:
         raise HTTPException(status_code=404, detail="Attendance not found")
 
+    # ---- Parse datetime ----
+    try:
+        in_dt = datetime.fromisoformat(in_datetime)
+        out_dt = datetime.fromisoformat(out_datetime)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid datetime format")
+
+    # ---- Overnight handling ----
+    if out_dt <= in_dt:
+        out_dt += timedelta(days=1)
+
     emp = employees.find_one({"_id": record["employee_id"]})
-    shift_minutes = int(emp.get("total_duty_hours_per_day", 8) * 60)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
 
-    record_date = datetime.fromisoformat(record["date"]).date()
+    shift_minutes = int(emp["total_duty_hours_per_day"] * 60)
+    monthly_salary = float(emp.get("salary", 0))
 
-    in_dt, out_dt = resolve_in_out_datetime(
-        record_date,
-        data,
+    # ---- Work minutes ----
+    work_minutes = int((out_dt - in_dt).total_seconds() / 60)
+
+    # ---- Salary rate ----
+    daily_rate = calculate_daily_rate(
+        monthly_salary,
+        in_dt.year,
+        in_dt.month
     )
 
-    if not in_dt or not out_dt:
-        raise HTTPException(
-            status_code=400,
-            detail="Valid IN and OUT time required",
-        )
+    # ---- OT ----
+    overtime_minutes = max(0, work_minutes - shift_minutes)
 
-    work_minutes = minutes_between(in_dt, out_dt)
-    overtime_minutes = calculate_overtime(work_minutes, shift_minutes)
-
-    if work_minutes > shift_minutes:
+    # ---- Status ----
+    if work_minutes <= 0:
+        status = "PRESENT_INCOMPLETE"
+    elif work_minutes > shift_minutes:
         status = "PRESENT_OVERTIME"
     elif work_minutes == shift_minutes:
         status = "PRESENT_COMPLETE"
     else:
         status = "PRESENT_INCOMPLETE"
 
+    # ---- Day salary (THIS FIXES YOUR ISSUE) ----
+    if work_minutes <= 0:
+        day_salary = 0
+    elif work_minutes < shift_minutes:
+        day_salary = calculate_prorated_salary(
+            work_minutes,
+            shift_minutes,
+            daily_rate
+        )
+    else:
+        day_salary = daily_rate
+
     attendance_daily.update_one(
         {"_id": ObjectId(attendance_id)},
         {"$set": {
-            # OLD (KEEP)
             "first_in": in_dt.strftime("%H:%M"),
             "last_out": out_dt.strftime("%H:%M"),
-
-            # NEW
             "in_datetime": in_dt.isoformat(),
             "out_datetime": out_dt.isoformat(),
-
             "work_minutes": work_minutes,
             "overtime_minutes": overtime_minutes,
+            "day_salary": round(day_salary, 2),
             "status": status,
             "source": "MANUAL",
+            "updated_at": datetime.utcnow(),
         }},
     )
 
-    return {"message": "Attendance updated successfully"}
+    return {"message": "Attendance updated manually"}

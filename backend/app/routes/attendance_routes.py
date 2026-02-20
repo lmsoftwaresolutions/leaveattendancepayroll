@@ -3,11 +3,13 @@ from app.middleware.role_guard import allow_roles
 from app.core.constants import ROLE_ADMIN
 from app.schemas.attendance_schema import AttendanceFetchSchema
 from app.services.attendance_service import delete_attendance
+from fastapi import APIRouter, Body
+from typing import Dict
 from app.services.attendance_service import (
     process_biometric_upload,
     get_attendance_by_employee,
     fetch_and_process_biometric,
-    edit_attendance,
+    edit_attendance_manual,
 )
 
 router = APIRouter(prefix="/admin/attendance", tags=["Attendance"])
@@ -31,15 +33,6 @@ def fetch(
     return get_attendance_by_employee(employee_id, month)
 
 
-@router.put("/{attendance_id}")
-def update(
-    attendance_id: str,
-    data: dict,
-    user=Depends(allow_roles(ROLE_ADMIN)),
-):
-    return edit_attendance(attendance_id, data)
-
-
 @router.post("/fetch")
 def fetch_from_biometric(
     data: AttendanceFetchSchema,
@@ -55,3 +48,17 @@ def monthly_summary(
 ):
     from app.services.attendance_service import get_monthly_payroll_summary
     return get_monthly_payroll_summary(month)
+
+@router.put("/{attendance_id}")
+def update_attendance(
+    attendance_id: str,
+    payload: Dict = Body(...),
+    user=Depends(allow_roles(ROLE_ADMIN)),
+):
+    from app.services.attendance_service import edit_attendance_manual
+
+    return edit_attendance_manual(
+        attendance_id=attendance_id,
+        in_datetime=payload.get("in_datetime"),
+        out_datetime=payload.get("out_datetime"),
+    )

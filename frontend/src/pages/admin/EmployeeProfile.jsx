@@ -6,7 +6,7 @@ import AttendanceSalaryTable from "./AttendanceSalaryTable";
 export default function EmployeeProfile() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const month = searchParams.get("month"); // 👈 from dashboard
+  const month = searchParams.get("month");
 
   const [employee, setEmployee] = useState(null);
   const [attendance, setAttendance] = useState([]);
@@ -21,7 +21,7 @@ export default function EmployeeProfile() {
       .finally(() => setLoadingProfile(false));
   }, [id]);
 
-  /* ===== AUTO LOAD ATTENDANCE FOR DASHBOARD MONTH ===== */
+  /* ===== LOAD ATTENDANCE ===== */
   useEffect(() => {
     if (!month) return;
 
@@ -33,44 +33,44 @@ export default function EmployeeProfile() {
   }, [id, month]);
 
   if (loadingProfile) {
-    return <div className="p-6">Loading employee profile...</div>;
+    return <div className="p-4 text-sm">Loading employee profile...</div>;
   }
 
   if (!employee) {
-    return <div className="p-6">Employee not found</div>;
+    return <div className="p-4 text-sm">Employee not found</div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Back */}
       <Link to="/admin" className="text-sm text-blue-600 underline">
         ← Back to Dashboard
       </Link>
 
       {/* ================= PROFILE ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* LEFT */}
-        <div className="bg-white shadow rounded p-6 flex flex-col items-center text-center space-y-3">
-          <div className="w-28 h-28 rounded-full bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-600">
+        <div className="bg-white border rounded p-4 flex flex-col items-center text-center space-y-2">
+          <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-600">
             {employee.full_name?.charAt(0)}
           </div>
 
           <div>
-            <h1 className="text-lg font-bold">{employee.full_name}</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-base font-semibold">{employee.full_name}</h1>
+            <p className="text-xs text-gray-500">
               {employee.designation || "-"}
             </p>
-            <p className="text-xs text-gray-400">
+            <p className="text-[11px] text-gray-400">
               Employee Code: {employee.emp_code}
             </p>
           </div>
         </div>
 
         {/* RIGHT */}
-        <div className="bg-white shadow rounded p-6 md:col-span-3">
-          <h2 className="text-lg font-bold mb-4">Employee Details</h2>
+        <div className="bg-white border rounded p-4 md:col-span-3">
+          <h2 className="text-base font-semibold mb-3">Employee Details</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Detail label="Department" value={employee.department} />
             <Detail label="Designation" value={employee.designation} />
             <Detail label="Salary" value={`₹ ${employee.salary}`} />
@@ -83,15 +83,13 @@ export default function EmployeeProfile() {
       </div>
 
       {/* ================= ATTENDANCE & SALARY ================= */}
-      <div className="bg-white shadow rounded p-6 space-y-4">
-        <h2 className="text-lg font-bold">
+      <div className="bg-white border rounded p-4 space-y-3">
+        <h2 className="text-base font-semibold">
           Attendance & Salary ({month || "N/A"})
         </h2>
 
         {loadingAttendance ? (
-          <p className="text-sm text-gray-500">
-            Loading attendance data...
-          </p>
+          <p className="text-sm text-gray-500">Loading attendance data...</p>
         ) : attendance.length === 0 ? (
           <p className="text-sm text-gray-500">
             No attendance records for this month
@@ -99,6 +97,8 @@ export default function EmployeeProfile() {
         ) : (
           <AttendanceSalaryTable
             data={attendance}
+            employeeName={employee.full_name}
+            month={month}    
             shiftStart={employee.shift_start_time}
             shiftEnd={employee.shift_end_time}
             shiftHours={employee.total_duty_hours_per_day}
@@ -110,11 +110,12 @@ export default function EmployeeProfile() {
   );
 }
 
+/* ================= DETAIL COMPONENT ================= */
 function Detail({ label, value }) {
   return (
     <div>
-      <p className="text-gray-500">{label}</p>
-      <p className="font-medium">{value || "-"}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-sm font-medium">{value || "-"}</p>
     </div>
   );
 }
