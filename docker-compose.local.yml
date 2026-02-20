@@ -4,45 +4,47 @@ services:
   mongo:
     image: mongo:7
     container_name: palve-mongo
-    restart: unless-stopped
+    ports:
+      - "27017:27017"
     volumes:
       - mongo_data:/data/db
     networks:
-      - palve-network
+      - web
+    restart: always
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: palve-backend
+    ports:
+      - "8000:8000"
     env_file:
       - ./backend/.env
     depends_on:
       - mongo
     networks:
-      - palve-network
+      - web
     volumes:
       - ./backend:/app
-    restart: unless-stopped
-    expose:
-      - "8000"
+    restart: always
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: palve-frontend
+    ports:
+      - "5173:80"
     depends_on:
       - backend
     networks:
-      - palve-network
-    restart: unless-stopped
-    expose:
-      - "80"
+      - web
+    restart: always
 
 volumes:
   mongo_data:
 
 networks:
-  palve-network:
-    driver: bridge
+  web:
+    external: true

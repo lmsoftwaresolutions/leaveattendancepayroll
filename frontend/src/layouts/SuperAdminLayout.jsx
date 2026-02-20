@@ -13,7 +13,8 @@ export default function SuperAdminLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
+      {/* Mobile overlay */}
       {open && (
         <div
           className="fixed inset-0 bg-black/40 z-30 md:hidden"
@@ -21,34 +22,28 @@ export default function SuperAdminLayout() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* SIDEBAR (fixed) */}
       <aside
         className={`
-          fixed md:static z-40
-          w-64 h-screen
-          bg-gray-800 text-gray-100
+          fixed inset-y-0 left-0 z-40
+          w-64
+          bg-gradient-to-b from-gray-900 to-gray-800
+          text-gray-100
           flex flex-col
           transform transition-transform duration-300
           ${open ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0
         `}
       >
-        <div className="p-6 text-2xl font-bold border-b border-gray-700">
+        <div className="px-6 py-5 text-xl font-bold border-b border-gray-700">
           Payroll Admin
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          <Link
-            to="/superadmin"
-            className="block px-4 py-2 rounded-lg hover:bg-gray-700"
-          >
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <Link to="/superadmin" className="block px-4 py-2 rounded-lg hover:bg-white/10">
             Dashboard
           </Link>
-
-          <Link
-            to="/superadmin/create-admin"
-            className="block px-4 py-2 rounded-lg hover:bg-gray-700"
-          >
+          <Link to="/superadmin/create-admin" className="block px-4 py-2 rounded-lg hover:bg-white/10">
             Create Admin
           </Link>
         </nav>
@@ -63,21 +58,17 @@ export default function SuperAdminLayout() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64">
+      {/* CONTENT — PUSHED BY PADDING, NOT MARGIN */}
+      <div className="pl-0 md:pl-64">
+        {/* Mobile header */}
         <header className="md:hidden bg-white shadow px-4 py-3 flex items-center">
-          <button
-            onClick={() => setOpen(true)}
-            className="text-2xl mr-3"
-          >
+          <button onClick={() => setOpen(true)} className="text-2xl mr-3">
             ☰
           </button>
-          <h1 className="font-semibold text-gray-700">
-            Super Admin
-          </h1>
+          <h1 className="font-semibold text-gray-700">Super Admin</h1>
         </header>
 
-        <main className="flex-1 px-6 py-6 overflow-auto">
+        <main className="p-6 min-h-screen">
           <Outlet />
         </main>
       </div>

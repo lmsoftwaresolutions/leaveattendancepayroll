@@ -57,7 +57,7 @@ const generateSalarySlip = ({
 
 export default function AttendanceSalaryTable({
   data,
-  employeeName,   
+  employeeName,
   month,
   shiftStart,
   shiftEnd,
@@ -88,7 +88,7 @@ export default function AttendanceSalaryTable({
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
+      d.getDate(),
     )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
@@ -103,13 +103,12 @@ export default function AttendanceSalaryTable({
       acc.baseSalary += row.day_salary || 0;
       return acc;
     },
-    { workMinutes: 0, otMinutes: 0, baseSalary: 0 }
+    { workMinutes: 0, otMinutes: 0, baseSalary: 0 },
   );
 
   const totalOTAmount = data.reduce((sum, row) => {
     if (!row.overtime_minutes || row.overtime_minutes <= 0) return sum;
-    const perHourRate =
-      shiftHours > 0 ? (row.day_salary || 0) / shiftHours : 0;
+    const perHourRate = shiftHours > 0 ? (row.day_salary || 0) / shiftHours : 0;
     return sum + (row.overtime_minutes / 60) * perHourRate * otMultiplier;
   }, 0);
 
@@ -129,7 +128,7 @@ export default function AttendanceSalaryTable({
       }
       return acc;
     },
-    { present: 0, absent: 0 }
+    { present: 0, absent: 0 },
   );
 
   /* ================= EDIT LOGIC ================= */
@@ -148,20 +147,17 @@ export default function AttendanceSalaryTable({
 
     setSaving(true);
 
-    const res = await fetch(
-      `http://localhost:8000/admin/attendance/${editRow._id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          in_datetime: inTime,
-          out_datetime: outTime,
-        }),
-      }
-    );
+    const res = await fetch(`/api/admin/attendance/${editRow._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({
+        in_datetime: inTime,
+        out_datetime: outTime,
+      }),
+    });
 
     setSaving(false);
 
@@ -179,8 +175,10 @@ export default function AttendanceSalaryTable({
   return (
     <div className="space-y-5">
       {/* ===== SUMMARY ===== */}
-      <div className="bg-white border rounded-lg p-4 space-y-4">
-        <div className="flex justify-end">
+      {/* <h2 className="text-base font-semibold">
+          Attendance & Salary ({month || "N/A"})
+        </h2>
+      <div className="flex justify-end">
           <button
             onClick={() =>
               generateSalarySlip({
@@ -197,10 +195,35 @@ export default function AttendanceSalaryTable({
           >
             Download Salary Slip
           </button>
-        </div>
+        </div> */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold">
+          Attendance & Salary ({month || "N/A"})
+        </h2>
 
+        <button
+          onClick={() =>
+            generateSalarySlip({
+              employeeName,
+              month,
+              totals,
+              totalOTAmount,
+              netSalary,
+              dayCounts,
+              shiftTime,
+            })
+          }
+          className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded"
+        >
+          Download Salary Slip
+        </button>
+      </div>
+      <div className="bg-white border rounded-lg p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
-          <Summary label="Total Work Hours" value={toHHMM(totals.workMinutes)} />
+          <Summary
+            label="Total Work Hours"
+            value={toHHMM(totals.workMinutes)}
+          />
           <Summary
             label="Total OT Hours"
             value={toHHMM(totals.otMinutes)}
@@ -238,11 +261,11 @@ export default function AttendanceSalaryTable({
               <th className="border-b p-2">Status</th>
               <th className="border-b p-2">In</th>
               <th className="border-b p-2">Out</th>
-              <th className="border-b p-2 text-right">Work</th>
+              <th className="border-b p-2 text-right">Work (hr)</th>
               <th className="border-b p-2 text-right">OT</th>
-              <th className="border-b p-2 text-right">Day Salary</th>
+              <th className="border-b p-2 text-right">Day Amount</th>
               <th className="border-b p-2 text-right">OT Amount</th>
-              <th className="border-b p-2 text-center">Shift</th>
+              <th className="border-b p-2 text-center">Shift Time</th>
               <th className="border-b p-2 text-center">Actions</th>
             </tr>
           </thead>
@@ -253,9 +276,7 @@ export default function AttendanceSalaryTable({
                 shiftHours > 0 ? (row.day_salary || 0) / shiftHours : 0;
 
               const otAmount =
-                ((row.overtime_minutes || 0) / 60) *
-                perHourRate *
-                otMultiplier;
+                ((row.overtime_minutes || 0) / 60) * perHourRate * otMultiplier;
 
               return (
                 <tr key={row._id} className="hover:bg-gray-50">

@@ -84,10 +84,6 @@ export default function EmployeeProfile() {
 
       {/* ================= ATTENDANCE & SALARY ================= */}
       <div className="bg-white border rounded p-4 space-y-3">
-        <h2 className="text-base font-semibold">
-          Attendance & Salary ({month || "N/A"})
-        </h2>
-
         {loadingAttendance ? (
           <p className="text-sm text-gray-500">Loading attendance data...</p>
         ) : attendance.length === 0 ? (

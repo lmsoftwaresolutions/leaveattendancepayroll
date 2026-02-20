@@ -3,6 +3,7 @@ import api from "../../api/axios";
 import { Link } from "react-router-dom";
 
 export default function AdminDashboard() {
+  // const currentMonth = new Date().toISOString().slice(0, 7);
   const currentMonth = "2026-01";
 
   const [stats, setStats] = useState({
@@ -138,12 +139,12 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+        {/* <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
           <p className="text-xs text-purple-700 font-medium">Payroll Status</p>
           <p className="text-sm font-semibold text-purple-900 mt-2">
             Calculated from Attendance
           </p>
-        </div>
+        </div> */}
       </div>
 
       {/* ================= PAYROLL SUMMARY ================= */}

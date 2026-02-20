@@ -317,7 +317,7 @@ def process_biometric_upload(file: UploadFile, month: str):
             # ---------- WEEKLY OFF ----------
             if d.weekday() == 6 and not logs:
                 attendance_daily.update_one(
-                    {"emp_code": emp_code, "date": date_str},
+                    {"employee_id": emp["_id"], "date": date_str},
                     {"$set": {
                         "employee_id": emp["_id"],
                         "emp_code": emp_code,
@@ -336,7 +336,7 @@ def process_biometric_upload(file: UploadFile, month: str):
             # ---------- NO BIOMETRIC DATA ----------
             if not logs:
                 attendance_daily.update_one(
-                    {"emp_code": emp_code, "date": date_str},
+                    {"employee_id": emp["_id"], "date": date_str},
                     {"$set": {
                         "employee_id": emp["_id"],
                         "emp_code": emp_code,
@@ -367,7 +367,7 @@ def process_biometric_upload(file: UploadFile, month: str):
                 status = "PRESENT_INCOMPLETE"
 
             attendance_daily.update_one(
-                {"emp_code": emp_code, "date": date_str},
+                {"employee_id": emp["_id"], "date": date_str},
                 {"$set": {
                     "employee_id": emp["_id"],
                     "emp_code": emp_code,

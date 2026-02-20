@@ -24,7 +24,8 @@ def upload(
     return process_biometric_upload(file, month)
 
 
-@router.get("/")
+# @router.get("/")
+@router.get("")
 def fetch(
     employee_id: str,
     month: str,
